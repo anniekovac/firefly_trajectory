@@ -21,6 +21,7 @@ import os
 import time
 
 trajectory = []
+replanned_trajectory = []
 
 def define_coeffs(x0, xk, t, dx0=0, d2x0=0, d3x0=0, d4x0=0, dxk=0, d2xk=0, d3xk=0, d4xk=0):
     """
@@ -192,55 +193,71 @@ def calulating_trajectory(x, y, z, t, v_max, a_max, vx=(0,0), vy=(0,0), vz=(0,0)
         newPoint.time_from_start = rospy.Duration(t)
 
         newMsg.points.append(newPoint)
-    try:
-        v_real_max = np.amax(v_real)
-        a_real_max = np.amax(a_real)
-    except:
-        import pdb; pdb.set_trace()
+
+    v_real_max = np.amax(v_real)
+    a_real_max = np.amax(a_real)
+
     Sv = v_real_max/v_max
     Sa = math.sqrt(a_real_max/a_max)
 
     if round(Sa, 2) == 1.0 or round(Sv, 2) == 1.0:
-        trajSample = TrajectorySample()
 
-        # making of trajSample object
+        vels = (v_x, v_y, v_z)
+        accs = (a_x, a_y, a_z)
+        pos = (x, y, z)
+        jerks = (j_x, j_y, j_z)
+        snaps = (s_x, s_y, s_z)
 
-        # saving time to object trajSample
-        trajSample.time = t_disc
-        
-        # saving velocities to object trajSample
-        trajSample.velocities["v_x"] = v_x
-        trajSample.velocities["v_y"] = v_y
-        trajSample.velocities["v_z"] = v_z
-
-        # saving accelerations to object trajSample
-        trajSample.accelerations["a_x"] = a_x
-        trajSample.accelerations["a_y"] = a_y
-        trajSample.accelerations["a_z"] = a_z
-
-        # saving positions to object trajSample
-        trajSample.positions["x"] = x
-        trajSample.positions["y"] = y
-        trajSample.positions["z"] = z
-
-        # saving jerks to object trajSample
-        trajSample.jerk["j_x"] = j_x
-        trajSample.jerk["j_y"] = j_y
-        trajSample.jerk["j_z"] = j_z
-
-        # saving snaps to object trajSample
-        trajSample.snap["s_x"] = s_x
-        trajSample.snap["s_y"] = s_y
-        trajSample.snap["s_z"] = s_z
-
-        trajectory.append(trajSample)
-
+        appending_to_trajectory(t_disc, vels, accs, pos, jerks, snaps)
         return newMsg
 
     return (Sa, Sv)
 
+def appending_to_trajectory(t_disc, vels, accs, pos, jerks, snaps):
+
+    v_x, v_y, v_z = vels
+    a_x, a_y, a_z = accs
+    x, y, z = pos
+    j_x, j_y, j_z = jerks
+    s_x, s_y, s_z = snaps
+
+    trajSample = TrajectorySample()
+
+    # making of trajSample object
+
+    # saving time to object trajSample
+    trajSample.time = t_disc
+    
+    # saving velocities to object trajSample
+    trajSample.velocities["v_x"] = v_x
+    trajSample.velocities["v_y"] = v_y
+    trajSample.velocities["v_z"] = v_z
+
+    # saving accelerations to object trajSample
+    trajSample.accelerations["a_x"] = a_x
+    trajSample.accelerations["a_y"] = a_y
+    trajSample.accelerations["a_z"] = a_z
+
+    # saving positions to object trajSample
+    trajSample.positions["x"] = x
+    trajSample.positions["y"] = y
+    trajSample.positions["z"] = z
+
+    # saving jerks to object trajSample
+    trajSample.jerk["j_x"] = j_x
+    trajSample.jerk["j_y"] = j_y
+    trajSample.jerk["j_z"] = j_z
+
+    # saving snaps to object trajSample
+    trajSample.snap["s_x"] = s_x
+    trajSample.snap["s_y"] = s_y
+    trajSample.snap["s_z"] = s_z
+
+    trajectory.append(trajSample)
+
+
 def trajectory_two_points(point0, point1, v_max, a_max, pub, speedp0 = (0,0,0), speedp1=(0,0,0), \
-                            accp0=(0,0,0), accp1=(0,0,0), jerkp0=(0,0,0), jerkp1=(0,0,0), snapp0=(0,0,0), snapp1=(0,0,0)):
+                            accp0=(0,0,0), accp1=(0,0,0), jerkp0=(0,0,0), jerkp1=(0,0,0), snapp0=(0,0,0), snapp1=(0,0,0), optimizing = True):
     """
     Function that generates trajectory between two points.
 
@@ -276,7 +293,9 @@ def trajectory_two_points(point0, point1, v_max, a_max, pub, speedp0 = (0,0,0), 
                         ax=(ax0, ax1), ay=(ay0, ay1), az=(az0, az1), jx=(jx0, jx1), jy=(jy0, jy1), 
                         jz=(jz0, jz1), sx=(sx0, sx1), sy=(sy0, sy1), sz=(sz0, sz1))
     
-    
+    if not optimizing:
+        return trajectory_between_two_points
+
     # while Sa != 1 and Sv != 1 (need for more calculating trajectory)
     while isinstance(trajectory_between_two_points, tuple):
         Sa, Sv = trajectory_between_two_points
@@ -339,7 +358,10 @@ def run():
         idx_for_replan = int(round(small_traj_len*percentage))
 
         # next trajectory in line 
-        next_traj = trajectory[i+1]
+        try:
+            next_traj = trajectory[i+1]
+        except IndexError:
+            continue
 
         # length of the next piece of trajectory
         next_traj_len = len(next_traj.time)
@@ -404,7 +426,7 @@ def run():
 
 
         newMsg = trajectory_two_points(point0, point1,  v_max, a_max, pub, speedp0 = vp0, speedp1=vp1, \
-                            accp0=ap0, accp1=ap1, jerkp0=jp0, jerkp1=jp1, snapp0=sp0, snapp1=sp1)
+                            accp0=ap0, accp1=ap1, jerkp0=jp0, jerkp1=jp1, snapp0=sp0, snapp1=sp1, optimizing = False)
    
 
 if __name__ == "__main__":
