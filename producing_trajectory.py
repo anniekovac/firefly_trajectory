@@ -160,6 +160,49 @@ def calulating_trajectory(x, y, z, t, v_max, a_max, vx=(0,0), vy=(0,0), vz=(0,0)
         v_real[idx] = math.sqrt(v_x[idx]**2 + v_y[idx]**2 + v_z[idx]**2)
         a_real[idx] = math.sqrt(a_x[idx]**2 + a_y[idx]**2 + a_z[idx]**2)
 
+    pos = (x, y, z)
+    vel = (v_x, v_y, v_z)
+    acc = (a_x, a_y, a_z)
+
+    newMsg = producing_message(pos, vel, acc, t_disc, newMsg)
+    
+    v_real_max = np.amax(v_real)
+    a_real_max = np.amax(a_real)
+
+    Sv = v_real_max/v_max
+    Sa = math.sqrt(a_real_max/a_max)
+
+    if round(Sa, 2) == 1.0 or round(Sv, 2) == 1.0:
+
+        vels = (v_x, v_y, v_z)
+        accs = (a_x, a_y, a_z)
+        pos = (x, y, z)
+        jerks = (j_x, j_y, j_z)
+        snaps = (s_x, s_y, s_z)
+
+        appending_to_trajectory(t_disc, vels, accs, pos, jerks, snaps)
+        return newMsg
+
+    return (Sa, Sv)
+
+def producing_message(pos, vel, acc, t_disc, newMsg):
+    """
+    This function produces message to publish 
+    from pos, vel, acc. 
+
+    pos - tuple of lists (x, y, z) x: list of all x positions in trajectory
+    vel - tuple of lists (v_x, v_y, v_z) v_x: list of all x positions in trajectory
+    acc - tuple of lists (a_x, a_y, a_z) a_x: list of all x accelerations in trajectory
+    t_disc - list (time)
+    newMsg - already created (empty?) message
+    """
+
+    x, y, z = pos
+    v_x, v_y, v_z = vel
+    a_x, a_y, a_z = acc
+
+    for idx, t in enumerate(t_disc):
+
         # initialization of message components
         newPoint = MultiDOFJointTrajectoryPoint()
 
@@ -167,7 +210,7 @@ def calulating_trajectory(x, y, z, t, v_max, a_max, vx=(0,0), vy=(0,0), vz=(0,0)
         newQuaternion = Quaternion()
         newVelocities = Twist()
         newAccelerations = Twist()
-
+     
         newTransform.translation.x = x[idx]
         newTransform.translation.y = y[idx]
         newTransform.translation.z = z[idx]
@@ -194,24 +237,7 @@ def calulating_trajectory(x, y, z, t, v_max, a_max, vx=(0,0), vy=(0,0), vz=(0,0)
 
         newMsg.points.append(newPoint)
 
-    v_real_max = np.amax(v_real)
-    a_real_max = np.amax(a_real)
-
-    Sv = v_real_max/v_max
-    Sa = math.sqrt(a_real_max/a_max)
-
-    if round(Sa, 2) == 1.0 or round(Sv, 2) == 1.0:
-
-        vels = (v_x, v_y, v_z)
-        accs = (a_x, a_y, a_z)
-        pos = (x, y, z)
-        jerks = (j_x, j_y, j_z)
-        snaps = (s_x, s_y, s_z)
-
-        appending_to_trajectory(t_disc, vels, accs, pos, jerks, snaps)
-        return newMsg
-
-    return (Sa, Sv)
+    return newMsg
 
 def appending_to_trajectory(t_disc, vels, accs, pos, jerks, snaps):
 
@@ -381,7 +407,7 @@ def run():
 
     percentage = 0.7
 
-    begin_point = trajectory[0]
+    begin_point = (trajectory[0], 0)
 
     # for every part of trajectory (between two points)
     for i, small_trajectory in enumerate(trajectory):
@@ -412,6 +438,15 @@ def run():
         newMsg = trajectory_two_points(point0, point1,  v_max, a_max, pub, speedp0 = vp0, speedp1=vp1, \
                             accp0=ap0, accp1=ap1, jerkp0=jp0, jerkp1=jp1, snapp0=sp0, snapp1=sp1, optimizing = False)
 
+        import pdb; pdb.set_trace()
+
+    # traj_2_points = MultiDOFJointTrajectory()
+    # for i, point in enumerate(points):
+    #     try:
+    #         traj_2_points.points.extend(trajectory_two_points(point, points[i+1], v_max, a_max, pub).points)
+    #     except IndexError:
+    #         pass
+    # publisher(traj_2_points, pub)
 
    
 
