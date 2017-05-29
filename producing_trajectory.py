@@ -328,6 +328,40 @@ def multiple_points(points, v_max, a_max, pub):
             pass
     publisher(traj_2_points, pub)
 
+def derivations_of_small_traj(small_trajectory, idx_for_replan):
+    # getting positions in points which we want to replan trajectory
+    # for
+    pos = (small_trajectory.positions["x"][idx_for_replan],
+                small_trajectory.positions["y"][idx_for_replan],
+                small_trajectory.positions["z"][idx_for_replan])
+
+
+    # getting velocities in points which we want to replan trajectory
+    # for
+    vel = (small_trajectory.velocities["v_x"][idx_for_replan],
+                small_trajectory.velocities["v_y"][idx_for_replan],
+                small_trajectory.velocities["v_z"][idx_for_replan])
+
+
+    # getting accelerations in points which we want to replan trajectory
+    # for
+    acc = (small_trajectory.accelerations["a_x"][idx_for_replan], 
+            small_trajectory.accelerations["a_y"][idx_for_replan],
+            small_trajectory.accelerations["a_z"][idx_for_replan])
+
+    # getting jerk in points which we want to replan trajectory
+    # for
+    jerk = (small_trajectory.jerk["j_x"][idx_for_replan], 
+            small_trajectory.jerk["j_y"][idx_for_replan],
+            small_trajectory.jerk["j_z"][idx_for_replan])
+
+    # getting snap in points which we want to replan trajectory
+    # for
+    snap = (small_trajectory.snap["s_x"][idx_for_replan],
+            small_trajectory.snap["s_y"][idx_for_replan],
+            small_trajectory.snap["s_z"][idx_for_replan])
+
+    return [pos, vel, acc, jerk, snap]
 
 def run():
 
@@ -347,6 +381,8 @@ def run():
 
     percentage = 0.7
 
+    begin_point = trajectory[0]
+
     # for every part of trajectory (between two points)
     for i, small_trajectory in enumerate(trajectory):
 
@@ -356,6 +392,8 @@ def run():
         # index of part of trajectory in which you want to replan 
         # trajectory you already have
         idx_for_replan = int(round(small_traj_len*percentage))
+
+        [point0, vp0, ap0, jp0, sp0]= derivations_of_small_traj(small_trajectory, idx_for_replan)
 
         # next trajectory in line 
         try:
@@ -369,64 +407,12 @@ def run():
         # index in which you want to land in next part of trajectory
         next_idx_for_replan = int(round(next_traj_len*(1.0 - percentage)))
 
-        #import pdb; pdb.set_trace()
-
-        # getting positions in points which we want to replan trajectory
-        # for
-        point0 = (small_trajectory.positions["x"][idx_for_replan],
-                    small_trajectory.positions["y"][idx_for_replan],
-                    small_trajectory.positions["z"][idx_for_replan])
-
-        point1 = (next_traj.positions["x"][next_idx_for_replan],
-                    next_traj.positions["y"][next_idx_for_replan],
-                    next_traj.positions["z"][next_idx_for_replan])
-
-        #import pdb; pdb.set_trace()
-
-        # getting velocities in points which we want to replan trajectory
-        # for
-        vp0 = (small_trajectory.velocities["v_x"][idx_for_replan],
-                    small_trajectory.velocities["v_y"][idx_for_replan],
-                    small_trajectory.velocities["v_z"][idx_for_replan])
-
-        vp1 = (next_traj.velocities["v_x"][next_idx_for_replan],
-                    next_traj.velocities["v_y"][next_idx_for_replan],
-                    next_traj.velocities["v_z"][next_idx_for_replan])
-
-
-        # getting accelerations in points which we want to replan trajectory
-        # for
-        ap0 = (small_trajectory.accelerations["a_x"][idx_for_replan], 
-                small_trajectory.accelerations["a_y"][idx_for_replan],
-                small_trajectory.accelerations["a_z"][idx_for_replan])
-
-        ap1 = (next_traj.accelerations["a_x"][next_idx_for_replan], 
-                next_traj.accelerations["a_y"][next_idx_for_replan],
-                next_traj.accelerations["a_z"][next_idx_for_replan])
-
-        # getting jerk in points which we want to replan trajectory
-        # for
-        jp0 = (small_trajectory.jerk["j_x"][idx_for_replan], 
-                small_trajectory.jerk["j_y"][idx_for_replan],
-                small_trajectory.jerk["j_z"][idx_for_replan])
-
-        jp1 = (next_traj.jerk["j_x"][next_idx_for_replan], 
-                next_traj.jerk["j_y"][next_idx_for_replan],
-                next_traj.jerk["j_z"][next_idx_for_replan])
-
-        # getting snap in points which we want to replan trajectory
-        # for
-        sp0 = (small_trajectory.snap["s_x"][idx_for_replan],
-                small_trajectory.snap["s_y"][idx_for_replan],
-                small_trajectory.snap["s_z"][idx_for_replan])
-
-        sp1 = (next_traj.snap["s_x"][next_idx_for_replan],
-                next_traj.snap["s_y"][next_idx_for_replan],
-                next_traj.snap["s_z"][next_idx_for_replan])
-
+        [point1, vp1, ap1, jp1, sp1] = derivations_of_small_traj(next_traj, next_idx_for_replan)
 
         newMsg = trajectory_two_points(point0, point1,  v_max, a_max, pub, speedp0 = vp0, speedp1=vp1, \
                             accp0=ap0, accp1=ap1, jerkp0=jp0, jerkp1=jp1, snapp0=sp0, snapp1=sp1, optimizing = False)
+
+
    
 
 if __name__ == "__main__":
