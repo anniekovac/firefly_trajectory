@@ -50,7 +50,11 @@ def publisher(newMsg, pub):
     pub.publish(newMsg)
 
 
-def calulating_trajectory(x, y, z, t, v_max, a_max, vx=(0,0), vy=(0,0), vz=(0,0), ax=(0,0), ay=(0,0), az=(0,0), jx=(0,0), jy=(0,0), jz=(0,0), sx=(0,0), sy=(0,0), sz=(0,0)):
+def calulating_trajectory(x, y, z, t, v_max, a_max, vx=(0,0), vy=(0,0), vz=(0,0), 
+                        ax=(0,0), ay=(0,0), az=(0,0), 
+                        jx=(0,0), jy=(0,0), jz=(0,0), 
+                        sx=(0,0), sy=(0,0), sz=(0,0),
+                        optimizing=True):
     """
     Calculating trajectory.
     args:
@@ -105,10 +109,7 @@ def calulating_trajectory(x, y, z, t, v_max, a_max, vx=(0,0), vy=(0,0), vz=(0,0)
     zb9, zb8, zb7, zb6, zb5, zb4, zb3, zb2, zb1, zb0 = z_coeffs
 
     #time sampling
-    try:
-        t_disc = np.linspace(0, t, num=int(100.0*t))
-    except:
-        import pdb; pdb.set_trace()
+    t_disc = np.linspace(0, t, num=int(100.0*t))
 
     x = np.zeros(len(t_disc))
     y = np.zeros(len(t_disc))
@@ -165,6 +166,9 @@ def calulating_trajectory(x, y, z, t, v_max, a_max, vx=(0,0), vy=(0,0), vz=(0,0)
     acc = (a_x, a_y, a_z)
 
     newMsg = producing_message(pos, vel, acc, t_disc, newMsg)
+
+    if not optimizing:
+        return newMsg
     
     v_real_max = np.amax(v_real)
     a_real_max = np.amax(a_real)
@@ -210,10 +214,13 @@ def producing_message(pos, vel, acc, t_disc, newMsg):
         newQuaternion = Quaternion()
         newVelocities = Twist()
         newAccelerations = Twist()
-     
-        newTransform.translation.x = x[idx]
-        newTransform.translation.y = y[idx]
-        newTransform.translation.z = z[idx]
+        
+        try:
+            newTransform.translation.x = x[idx]
+            newTransform.translation.y = y[idx]
+            newTransform.translation.z = z[idx]
+        except:
+            import pdb; pdb.set_trace()
 
         # appending position in this point
         newPoint.transforms.append(newTransform)
@@ -317,7 +324,7 @@ def trajectory_two_points(point0, point1, v_max, a_max, pub, speedp0 = (0,0,0), 
     
     trajectory_between_two_points = calulating_trajectory((x0, x1), (y0, y1), (z0, z1), t, v_max, a_max, vx=(vx0, vx1), vy=(vy0, vy1), vz=(vz0, vz1), 
                         ax=(ax0, ax1), ay=(ay0, ay1), az=(az0, az1), jx=(jx0, jx1), jy=(jy0, jy1), 
-                        jz=(jz0, jz1), sx=(sx0, sx1), sy=(sy0, sy1), sz=(sz0, sz1))
+                        jz=(jz0, jz1), sx=(sx0, sx1), sy=(sy0, sy1), sz=(sz0, sz1), optimizing = optimizing)
     
     if not optimizing:
         return trajectory_between_two_points
@@ -330,7 +337,7 @@ def trajectory_two_points(point0, point1, v_max, a_max, pub, speedp0 = (0,0,0), 
 
         trajectory_between_two_points = calulating_trajectory((x0, x1), (y0, y1), (z0, z1), t, v_max, a_max, vx=(vx0, vx1), vy=(vy0, vy1), vz=(vz0, vz1), 
                         ax=(ax0, ax1), ay=(ay0, ay1), az=(az0, az1), jx=(jx0, jx1), jy=(jy0, jy1), 
-                        jz=(jz0, jz1), sx=(sx0, sx1), sy=(sy0, sy1), sz=(sz0, sz1))
+                        jz=(jz0, jz1), sx=(sx0, sx1), sy=(sy0, sy1), sz=(sz0, sz1), optimizing = optimizing)
     
     return trajectory_between_two_points
 
@@ -352,7 +359,7 @@ def multiple_points(points, v_max, a_max, pub):
             traj_2_points.points.extend(trajectory_two_points(point, points[i+1], v_max, a_max, pub).points)
         except IndexError:
             pass
-    publisher(traj_2_points, pub)
+    #publisher(traj_2_points, pub)
 
 def derivations_of_small_traj(small_trajectory, idx_for_replan):
     # getting positions in points which we want to replan trajectory
@@ -405,9 +412,13 @@ def run():
 
     multiple_points(points, v_max, a_max, pub)
 
+    # defining percentage, begin point of trajectory,
+    # and initialization of final message to be published
     percentage = 0.7
+    begin_point = 0
+    finalMsg = MultiDOFJointTrajectory()
 
-    begin_point = (trajectory[0], 0)
+    last_traj_flag = False
 
     # for every part of trajectory (between two points)
     for i, small_trajectory in enumerate(trajectory):
@@ -419,12 +430,31 @@ def run():
         # trajectory you already have
         idx_for_replan = int(round(small_traj_len*percentage))
 
-        [point0, vp0, ap0, jp0, sp0]= derivations_of_small_traj(small_trajectory, idx_for_replan)
-
         # next trajectory in line 
         try:
             next_traj = trajectory[i+1]
         except IndexError:
+            idx_for_replan = small_traj_len - 1
+            last_traj_flag = True
+
+        # slicing trajectory from begin_point to point in which 
+        # we want to replan trajectory
+        pos = (small_trajectory.positions["x"][begin_point:idx_for_replan],
+                small_trajectory.positions["y"][begin_point:idx_for_replan],
+                small_trajectory.positions["z"][begin_point:idx_for_replan])
+
+        vel = (small_trajectory.velocities["v_x"][begin_point:idx_for_replan],
+                small_trajectory.velocities["v_y"][begin_point:idx_for_replan],
+                small_trajectory.velocities["v_z"][begin_point:idx_for_replan])
+
+        acc = (small_trajectory.accelerations["a_x"][begin_point:idx_for_replan],
+                small_trajectory.accelerations["a_y"][begin_point:idx_for_replan],
+                small_trajectory.accelerations["a_z"][begin_point:idx_for_replan])
+
+        t_disc = small_trajectory.time[begin_point:idx_for_replan]
+        finalMsg = producing_message(pos, vel, acc, t_disc, finalMsg)
+
+        if last_traj_flag:
             continue
 
         # length of the next piece of trajectory
@@ -433,22 +463,19 @@ def run():
         # index in which you want to land in next part of trajectory
         next_idx_for_replan = int(round(next_traj_len*(1.0 - percentage)))
 
+        # calculating values of derivations in points from and to which 
+        # we want to replan
+        [point0, vp0, ap0, jp0, sp0] = derivations_of_small_traj(small_trajectory, idx_for_replan)
         [point1, vp1, ap1, jp1, sp1] = derivations_of_small_traj(next_traj, next_idx_for_replan)
-
-        newMsg = trajectory_two_points(point0, point1,  v_max, a_max, pub, speedp0 = vp0, speedp1=vp1, \
+        
+        newMsg_extend = trajectory_two_points(point0, point1,  v_max, a_max, pub, speedp0 = vp0, speedp1=vp1, \
                             accp0=ap0, accp1=ap1, jerkp0=jp0, jerkp1=jp1, snapp0=sp0, snapp1=sp1, optimizing = False)
 
-        import pdb; pdb.set_trace()
+        finalMsg.points.extend(newMsg_extend.points)
 
-    # traj_2_points = MultiDOFJointTrajectory()
-    # for i, point in enumerate(points):
-    #     try:
-    #         traj_2_points.points.extend(trajectory_two_points(point, points[i+1], v_max, a_max, pub).points)
-    #     except IndexError:
-    #         pass
-    # publisher(traj_2_points, pub)
+        begin_point = next_idx_for_replan
 
-   
+    publisher(finalMsg, pub)
 
 if __name__ == "__main__":
     run()
