@@ -17,6 +17,7 @@ from geometry_msgs.msg import Twist
 
 from trajectory_sample import TrajectorySample
 
+from cycler import cycler
 import os
 import time
 
@@ -29,14 +30,14 @@ def define_coeffs(x0, xk, t, dx0=0, d2x0=0, d3x0=0, d4x0=0, dxk=0, d2xk=0, d3xk=
     """
     b0 = x0
     b1 = dx0
-    b2 = d2x0/2
-    b3 = d3x0/6
-    b4 = d3x0/24
-    b5 = (t**4*(-5*d4x0 + d4xk) - 12*t**3*(5*d3x0 + 2*d3xk) + 84*t**2*(-5*d2x0 + 3*d2xk) - 336*t*(5*dx0 + 4*dxk) - 3024*x0 + 3024*xk)/(24*t**5)
-    b6 = (t**4*(5*d4x0 - 2*d4xk) + 2*t**3*(40*d3x0 + 23*d3xk) + 42*t**2*(15*d2x0 - 11*d2xk) + 336*t*(8*dx0 + 7*dxk) + 5040*x0 - 5040*xk)/(12*t**6)
-    b7 = (t**4*(-5*d4x0 + 3*d4xk) - 6*t**3*(15*d3x0 + 11*d3xk) + 12*t**2*(-63*d2x0 + 53*d2xk) - 240*t*(14*dx0 + 13*dxk) - 6480*x0 + 6480*xk)/(12*t**7)
-    b8 = (t**4*(5*d4x0 - 4*d4xk) + 12*t**3*(8*d3x0 + 7*d3xk) + 60*t**2*(14*d2x0 - 13*d2xk) + 120*t*(32*dx0 + 31*dxk) + 7560*x0 - 7560*xk)/(24*t**8)
-    b9 = (t**4*(-d4x0 + d4xk) - 20*t**3*(d3x0 + d3xk) + 180*t**2*(-d2x0 + d2xk) - 840*t*(dx0 + dxk) - 1680*x0 + 1680*xk)/(24*t**9)
+    b2 = d2x0/2.0
+    b3 = d3x0/6.0
+    b4 = d4x0/24.0
+    b5 = (t**4.0*(-5.0*d4x0 + d4xk) - 12.0*t**3.0*(5.0*d3x0 + 2.0*d3xk) + 84.0*t**2.0*(-5.0*d2x0 + 3.0*d2xk) - 336.0*t*(5.0*dx0 + 4.0*dxk) - 3024.0*x0 + 3024.0*xk)/(24.0*t**5)
+    b6 = (t**4.0*(5.0*d4x0 - 2.0*d4xk) + 2.0*t**3.0*(40.0*d3x0 + 23.0*d3xk) + 42.0*t**2.0*(15.0*d2x0 - 11.0*d2xk) + 336.0*t*(8.0*dx0 + 7.0*dxk) + 5040.0*x0 - 5040.0*xk)/(12.0*t**6.0)
+    b7 = (t**4.0*(-5.0*d4x0 + 3.0*d4xk) - 6.0*t**3.0*(15.0*d3x0 + 11.0*d3xk) + 12.0*t**2.0*(-63.0*d2x0 + 53.0*d2xk) - 240.0*t*(14.0*dx0 + 13.0*dxk) - 6480.0*x0 + 6480.0*xk)/(12.0*t**7.0)
+    b8 = (t**4.0*(5.0*d4x0 - 4.0*d4xk) + 12.0*t**3.0*(8.0*d3x0 + 7.0*d3xk) + 60.0*t**2.0*(14.0*d2x0 - 13.0*d2xk) + 120.0*t*(32.0*dx0 + 31.0*dxk) + 7560.0*x0 - 7560.0*xk)/(24.0*t**8)
+    b9 = (t**4.0*(-d4x0 + d4xk) - 20.0*t**3.0*(d3x0 + d3xk) + 180.0*t**2.0*(-d2x0 + d2xk) - 840.0*t*(dx0 + dxk) - 1680.0*x0 + 1680.0*xk)/(24.0*t**9.0)
 
     coeffs = [b9, b8, b7, b6, b5, b4, b3, b2, b1, b0]
 
@@ -139,6 +140,9 @@ def calulating_trajectory(x, y, z, t, v_max, a_max, vx=(0,0), vy=(0,0), vz=(0,0)
 
         #position, speed and acceleration for x direction
         x[idx] = xb0 + xb1*t + xb2*(t**2) + xb3*(t**3) + xb4*(t**4) + xb5*(t**5) + xb6*(t**6) + xb7*(t**7) + xb8*(t**8) + xb9*(t**9)
+
+        # if x[idx] < 0: 
+        #     import pdb; pdb.set_trace()
         v_x[idx] = xb1 + 2*xb2*t + 3*xb3*t**2 + 4*xb4*t**3 + 5*xb5*t**4 + 6*xb6*t**5 + 7*xb7*t**6 + 8*xb8*t**7 + 9*xb9*t**8
         a_x[idx] = 2*xb2 + 6*xb3*t + 12*xb4*t**2 + 20*xb5*t**3 + 30*xb6*t**4 + 42*xb7*t**5 + 56*xb8*t**6 + 72*xb9*t**7
         j_x[idx] = 6*xb3 + 24*xb4*t + 60*xb5*t**2 + 120*xb6*t**3 + 210*xb7*t**4 + 336*xb8*t**5 + 504*xb9*t**6
@@ -215,12 +219,9 @@ def producing_message(pos, vel, acc, t_disc, newMsg):
         newVelocities = Twist()
         newAccelerations = Twist()
         
-        try:
-            newTransform.translation.x = x[idx]
-            newTransform.translation.y = y[idx]
-            newTransform.translation.z = z[idx]
-        except:
-            import pdb; pdb.set_trace()
+        newTransform.translation.x = x[idx]
+        newTransform.translation.y = y[idx]
+        newTransform.translation.z = z[idx]
 
         # appending position in this point
         newPoint.transforms.append(newTransform)
@@ -290,7 +291,7 @@ def appending_to_trajectory(t_disc, vels, accs, pos, jerks, snaps):
 
 
 def trajectory_two_points(point0, point1, v_max, a_max, pub, speedp0 = (0,0,0), speedp1=(0,0,0), \
-                            accp0=(0,0,0), accp1=(0,0,0), jerkp0=(0,0,0), jerkp1=(0,0,0), snapp0=(0,0,0), snapp1=(0,0,0), optimizing = True):
+                            accp0=(0,0,0), accp1=(0,0,0), jerkp0=(0,0,0), jerkp1=(0,0,0), snapp0=(0,0,0), snapp1=(0,0,0), optimizing = True, t=None):
     """
     Function that generates trajectory between two points.
 
@@ -320,8 +321,9 @@ def trajectory_two_points(point0, point1, v_max, a_max, pub, speedp0 = (0,0,0), 
     jx1, jy1, jz1 = jerkp1
 
     #calculating estimated t
-    t = math.sqrt((x1-x0)**2 + (y1-y0)**2 + (z1-z0)**2)/v_max
-    
+    if t is None:
+        t = math.sqrt((x1-x0)**2 + (y1-y0)**2 + (z1-z0)**2)/v_max
+
     trajectory_between_two_points = calulating_trajectory((x0, x1), (y0, y1), (z0, z1), t, v_max, a_max, vx=(vx0, vx1), vy=(vy0, vy1), vz=(vz0, vz1), 
                         ax=(ax0, ax1), ay=(ay0, ay1), az=(az0, az1), jx=(jx0, jx1), jy=(jy0, jy1), 
                         jz=(jz0, jz1), sx=(sx0, sx1), sy=(sy0, sy1), sz=(sz0, sz1), optimizing = optimizing)
@@ -334,7 +336,6 @@ def trajectory_two_points(point0, point1, v_max, a_max, pub, speedp0 = (0,0,0), 
         Sa, Sv = trajectory_between_two_points
         factor = max(Sa, Sv)
         t = factor*t
-
         trajectory_between_two_points = calulating_trajectory((x0, x1), (y0, y1), (z0, z1), t, v_max, a_max, vx=(vx0, vx1), vy=(vy0, vy1), vz=(vz0, vz1), 
                         ax=(ax0, ax1), ay=(ay0, ay1), az=(az0, az1), jx=(jx0, jx1), jy=(jy0, jy1), 
                         jz=(jz0, jz1), sx=(sx0, sx1), sy=(sy0, sy1), sz=(sz0, sz1), optimizing = optimizing)
@@ -362,19 +363,27 @@ def multiple_points(points, v_max, a_max, pub):
     #publisher(traj_2_points, pub)
 
 def derivations_of_small_traj(small_trajectory, idx_for_replan):
+    """
+    
+    Extracting position, velocity, acceleration, jerk and snap
+    from small_trajectory.
+    
+    small_trajectory: TrajectorySample class
+    idx_for_replan: int (index in which you want to extract derivations)
+
+    """
+    
     # getting positions in points which we want to replan trajectory
     # for
     pos = (small_trajectory.positions["x"][idx_for_replan],
                 small_trajectory.positions["y"][idx_for_replan],
                 small_trajectory.positions["z"][idx_for_replan])
 
-
     # getting velocities in points which we want to replan trajectory
     # for
     vel = (small_trajectory.velocities["v_x"][idx_for_replan],
                 small_trajectory.velocities["v_y"][idx_for_replan],
                 small_trajectory.velocities["v_z"][idx_for_replan])
-
 
     # getting accelerations in points which we want to replan trajectory
     # for
@@ -401,8 +410,8 @@ def run():
     rospy.init_node('talker', anonymous=True)
     pub = rospy.Publisher('/firefly/command/trajectory', MultiDOFJointTrajectory, queue_size=10) # your node is publishing to the chatter topic usting the msg type String
 
-    v_max = 5
-    a_max = 3
+    v_max = 2
+    a_max = 1.5
 
     points = []
     with open("trajectory_points.txt", 'r+') as traj_file:
@@ -414,68 +423,141 @@ def run():
 
     # defining percentage, begin point of trajectory,
     # and initialization of final message to be published
-    percentage = 0.7
+    percentages = [0.3, 0.7] 
+    plots = dict()
     begin_point = 0
     finalMsg = MultiDOFJointTrajectory()
 
     last_traj_flag = False
 
-    # for every part of trajectory (between two points)
-    for i, small_trajectory in enumerate(trajectory):
+    for percentage in percentages:
+        # for every part of trajectory (between two points)
+        for i, small_trajectory in enumerate(trajectory):
+            if i == 0:
+                begin_point = 0
+            #print len(finalMsg.points)
+            # lentgh of part of trajectory
+            small_traj_len = len(small_trajectory.time)
 
-        # lentgh of part of trajectory
-        small_traj_len = len(small_trajectory.time)
+            # index of part of trajectory in which you want to replan 
+            # trajectory you already have
+            idx_for_replan = int(round(small_traj_len*percentage))
 
-        # index of part of trajectory in which you want to replan 
-        # trajectory you already have
-        idx_for_replan = int(round(small_traj_len*percentage))
+            # next trajectory in line 
+            try:
+                next_traj = trajectory[i+1]
+            except IndexError:
+                idx_for_replan = small_traj_len - 1
+                last_traj_flag = True
 
-        # next trajectory in line 
-        try:
-            next_traj = trajectory[i+1]
-        except IndexError:
-            idx_for_replan = small_traj_len - 1
-            last_traj_flag = True
+            # if begin_point == 53:
+            #     #import pdb; pdb.set_trace()
+            #     print small_trajectory.positions["x"][begin_point]
+            #     print "time ", trajectory[i-1].time[-1] + small_trajectory.time[begin_point]
 
-        # slicing trajectory from begin_point to point in which 
-        # we want to replan trajectory
-        pos = (small_trajectory.positions["x"][begin_point:idx_for_replan],
-                small_trajectory.positions["y"][begin_point:idx_for_replan],
-                small_trajectory.positions["z"][begin_point:idx_for_replan])
+            # slicing trajectory from begin_point to point in which 
+            # we want to replan trajectory
+            pos = (small_trajectory.positions["x"][begin_point:idx_for_replan],
+                    small_trajectory.positions["y"][begin_point:idx_for_replan],
+                    small_trajectory.positions["z"][begin_point:idx_for_replan])
 
-        vel = (small_trajectory.velocities["v_x"][begin_point:idx_for_replan],
-                small_trajectory.velocities["v_y"][begin_point:idx_for_replan],
-                small_trajectory.velocities["v_z"][begin_point:idx_for_replan])
+            vel = (small_trajectory.velocities["v_x"][begin_point:idx_for_replan],
+                    small_trajectory.velocities["v_y"][begin_point:idx_for_replan],
+                    small_trajectory.velocities["v_z"][begin_point:idx_for_replan])
 
-        acc = (small_trajectory.accelerations["a_x"][begin_point:idx_for_replan],
-                small_trajectory.accelerations["a_y"][begin_point:idx_for_replan],
-                small_trajectory.accelerations["a_z"][begin_point:idx_for_replan])
+            acc = (small_trajectory.accelerations["a_x"][begin_point:idx_for_replan],
+                    small_trajectory.accelerations["a_y"][begin_point:idx_for_replan],
+                    small_trajectory.accelerations["a_z"][begin_point:idx_for_replan])
 
-        t_disc = small_trajectory.time[begin_point:idx_for_replan]
-        finalMsg = producing_message(pos, vel, acc, t_disc, finalMsg)
+            t_disc = small_trajectory.time[begin_point:idx_for_replan]
+            finalMsg = producing_message(pos, vel, acc, t_disc, finalMsg)
 
-        if last_traj_flag:
-            continue
+            if last_traj_flag:
+                continue
 
-        # length of the next piece of trajectory
-        next_traj_len = len(next_traj.time)
+            #print len(finalMsg.points)
 
-        # index in which you want to land in next part of trajectory
-        next_idx_for_replan = int(round(next_traj_len*(1.0 - percentage)))
+            # length of the next piece of trajectory
+            next_traj_len = len(next_traj.time)
 
-        # calculating values of derivations in points from and to which 
-        # we want to replan
-        [point0, vp0, ap0, jp0, sp0] = derivations_of_small_traj(small_trajectory, idx_for_replan)
-        [point1, vp1, ap1, jp1, sp1] = derivations_of_small_traj(next_traj, next_idx_for_replan)
+            # index in which you want to land in next part of trajectory
+            next_idx_for_replan = int(round(next_traj_len*(1.0 - percentage)))
+
+            # calculating values of derivations in points from and to which 
+            # we want to replan
+            [point0, vp0, ap0, jp0, sp0] = derivations_of_small_traj(small_trajectory, idx_for_replan)
+            [point1, vp1, ap1, jp1, sp1] = derivations_of_small_traj(next_traj, next_idx_for_replan)
+            #print point1
+            # print "small_traj_len: ", small_traj_len
+            # print "idx_for_replan: ", idx_for_replan
+            # print "time of idx_for_replan: ", small_trajectory.time[idx_for_replan]
+            # print "next_traj_len: ", next_traj_len
+            # print "next idx for replan: ", next_idx_for_replan
+            # print "time of next index: ", small_trajectory.time[-1] + next_traj.time[next_idx_for_replan]
+
+            # print "pos0: ", point0
+            # print "pos1: ", point1
+            # print "vp0: ", vp0
+            # print "vp1: ", vp1
+            # print "ap0: ", ap0
+            # print "ap1: ", ap1
+            
+            t = (1.0-percentage)*small_trajectory.time[-1]+(1.0-percentage)*next_traj.time[-1]
+            #import pdb; pdb.set_trace()
+
+            # v_max = 5
+            # a_max = 3
+            newMsg_extend = trajectory_two_points(point0, point1, v_max, a_max, pub, speedp0 = vp0, speedp1=vp1, \
+                                accp0=ap0, accp1=ap1, jerkp0=jp0, jerkp1=jp1, snapp0=sp0, snapp1=sp1, optimizing = False, t=t/4.0)
+
+            #import pdb; pdb.set_trace()
+            finalMsg.points.extend(newMsg_extend.points)
+            begin_point = next_idx_for_replan
+            #print "begin_point:", begin_point
+
+        f = 0.001
+        plots[str(percentage)] = ([], [])
+        for i in range(len(finalMsg.points)):
+            plots[str(percentage)][0].append(float(f + finalMsg.points[i].transforms[0].translation.x))
+            plots[str(percentage)][1].append(float(f + finalMsg.points[i].transforms[0].translation.y))
+
+    #import pdb; pdb.set_trace()
+#    publisher(finalMsg, pub)
+
+    # posx = []
+    # posy = []
+    # f = 0.001
+    # for i in range(len(finalMsg.points)):
+    #     posx.append(float(f + finalMsg.points[i].transforms[0].translation.x))
+    #     posy.append(float(f + finalMsg.points[i].transforms[0].translation.y))
+    plot_pointsx = [item[0] for item in points]
+    plot_pointsy = [item[1] for item in points]
+    #annot = ["first point", "second point", "third point", "fourth point"]
+
+    labels = []
+    for idx, key in enumerate(plots.keys()):
+        posx = plots[key][0]
+        posy = plots[key][1]
+
+        #import pdb; pdb.set_trace()
+        #print col
+
+        #fig = plt.figure(1)
+
+        #plt.rc('axes', prop_cycle=(cycler('color', ['r', 'g', 'b', 'y'])))
+        traj, = plt.plot(posx, posy, linewidth=1.8, label = 'Postotak = {}'.format(key))
         
-        newMsg_extend = trajectory_two_points(point0, point1,  v_max, a_max, pub, speedp0 = vp0, speedp1=vp1, \
-                            accp0=ap0, accp1=ap1, jerkp0=jp0, jerkp1=jp1, snapp0=sp0, snapp1=sp1, optimizing = False)
+        plt.title('Prikaz trajektorije u x-y ravnini')
+        plt.grid(True)
+        plt.xlabel('Postion x (m)')
+        plt.ylabel('Postion y (m)')
+        labels.append(traj)
 
-        finalMsg.points.extend(newMsg_extend.points)
+        plt.scatter(plot_pointsx, plot_pointsy)
+#    import pdb; pdb.set_trace()
+    plt.legend(handles = labels)
+    plt.show()
 
-        begin_point = next_idx_for_replan
-
-    publisher(finalMsg, pub)
 
 if __name__ == "__main__":
     run()
